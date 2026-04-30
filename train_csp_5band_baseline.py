@@ -21,6 +21,21 @@ def sort_session_ids(session_ids):
     return sorted(session_ids, key=lambda x: int(x))
 
 
+def resolve_csp_components(csp_components=None):
+    """
+    Kullanılacak CSP component sayısını belirler ve doğrular.
+    """
+    if csp_components is None:
+        value = int(config.CSP_COMPONENTS)
+    else:
+        value = int(csp_components)
+
+    if value <= 0:
+        raise ValueError("csp_components pozitif bir tamsayı olmalı.")
+
+    return value
+
+
 def get_canonical_bands():
     """
     Canonical 5 bandi sabit sirada dondurur.
@@ -124,12 +139,14 @@ def extract_log_variance(csp_space_data):
     return log_variance
 
 
-def fit_transform_one_band_csp(X_train_band, y_train, X_test_band):
+def fit_transform_one_band_csp(X_train_band, y_train, X_test_band, csp_components=None):
     """
     Tek bir band icin CSP'yi sadece train veride fit eder.
     """
+    csp_components_value = resolve_csp_components(csp_components)
+
     csp_model = CSP(
-        n_components=int(config.CSP_COMPONENTS),  # Her bantta 4
+        n_components=csp_components_value,
         reg="ledoit_wolf",  # Sayisal kararlilik
         log=None,
         transform_into="csp_space",
@@ -145,7 +162,7 @@ def fit_transform_one_band_csp(X_train_band, y_train, X_test_band):
     return X_train_feat, X_test_feat
 
 
-def build_5band_csp_features(X_train, y_train, X_test, sfreq):
+def build_5band_csp_features(X_train, y_train, X_test, sfreq, csp_components=None):
     """
     Her bant icin ayri CSP uygular, sonra tum bant feature'larini birlestirir.
     """
@@ -161,7 +178,8 @@ def build_5band_csp_features(X_train, y_train, X_test, sfreq):
         X_train_feat, X_test_feat = fit_transform_one_band_csp(
             X_train_band,
             y_train,
-            X_test_band
+            X_test_band,
+            csp_components=csp_components
         )
 
         train_feature_blocks.append(X_train_feat)
@@ -177,7 +195,7 @@ def build_5band_csp_features(X_train, y_train, X_test, sfreq):
 # 5) TEK FOLD CALISTIR
 # =========================================================
 
-def run_one_fold(X_train, y_train, X_test, y_test):
+def run_one_fold(X_train, y_train, X_test, y_test, csp_components=None):
     """
     Tek bir LOSO fold'unu calistirir.
 
@@ -187,11 +205,21 @@ def run_one_fold(X_train, y_train, X_test, y_test):
     - scaler sadece train'de fit edilir
     - sonra LDA egitilir
     """
+    csp_components_value = resolve_csp_components(csp_components)
+
+    n_channels = int(X_train.shape[1])
+    if csp_components_value > n_channels:
+        raise ValueError(
+            f"csp_components ({csp_components_value}) kanal sayısından büyük olamaz "
+            f"(n_channels={n_channels})."
+        )
+
     X_train_feat, X_test_feat = build_5band_csp_features(
         X_train,
         y_train,
         X_test,
-        sfreq=float(config.TARGET_SFREQ)
+        sfreq=float(config.TARGET_SFREQ),
+        csp_components=csp_components_value
     )
 
     scaler = StandardScaler()
@@ -219,12 +247,13 @@ def run_one_fold(X_train, y_train, X_test, y_test):
 # 6) TUM FOLD'LARI CALISTIR
 # =========================================================
 
-def run_loso_csp_5band_baseline(session_data, verbose=True):
+def run_loso_csp_5band_baseline(session_data, verbose=True, csp_components=None):
     """
     Tum LOSO-session fold'larini canonical 5-band CSP + LDA ile calistirir.
     """
     folds = build_loso_folds(session_data)
     bands = get_canonical_bands()
+    csp_components_value = resolve_csp_components(csp_components)
 
     fold_results = []
     all_predictions = []
@@ -246,7 +275,9 @@ def run_loso_csp_5band_baseline(session_data, verbose=True):
             print("X_train shape:", X_train.shape)
             print("X_test shape:", X_test.shape)
 
-        auc, bal_acc, cm, y_pred, y_score = run_one_fold(X_train, y_train, X_test, y_test)
+        auc, bal_acc, cm, y_pred, y_score = run_one_fold(
+            X_train, y_train, X_test, y_test, csp_components=csp_components_value
+        )
 
         if verbose:
             print("ROC-AUC:", round(auc, 4))
@@ -261,7 +292,7 @@ def run_loso_csp_5band_baseline(session_data, verbose=True):
             "n_train_samples": len(y_train),
             "n_test_samples": len(y_test),
             "n_bands": 5,
-            "csp_components_per_band": int(config.CSP_COMPONENTS),
+            "csp_components_per_band": csp_components_value,
             "roc_auc": round(float(auc), 6),
             "balanced_accuracy": round(float(bal_acc), 6),
             "cm_00": int(cm[0, 0]),
