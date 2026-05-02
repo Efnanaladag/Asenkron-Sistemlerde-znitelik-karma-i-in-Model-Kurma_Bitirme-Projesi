@@ -1,6 +1,6 @@
+import argparse
 import csv
 import os
-import sys
 
 import numpy as np
 
@@ -38,29 +38,47 @@ def preflight_wideband_inputs():
         )
 
 
-def get_session_range_from_cli():
-    """
-    Opsiyonel session araligini alir.
-
-    Kullanim:
-    python run_ablation_csp_components.py
-    python run_ablation_csp_components.py 1 3
-    """
-    if len(sys.argv) == 1:
-        return None, None
-
-    if len(sys.argv) == 3:
-        start_session = int(sys.argv[1])
-        end_session = int(sys.argv[2])
-
-        if start_session > end_session:
-            raise ValueError("Baslangic session, bitis session'dan buyuk olamaz.")
-
-        return start_session, end_session
-
-    raise ValueError(
-        "Kullanim: python run_ablation_csp_components.py [start_session end_session]"
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Run LOSO CSP component ablations on existing wideband windows."
     )
+    parser.add_argument(
+        "session_range",
+        nargs="*",
+        type=int,
+        metavar="SESSION",
+        help="Optional start and end session, for example: 1 3",
+    )
+    parser.add_argument(
+        "--components",
+        nargs="+",
+        type=int,
+        help="Positive CSP component values to run, for example: --components 4 8",
+    )
+    args = parser.parse_args()
+
+    if len(args.session_range) not in (0, 2):
+        parser.error("Provide either no session range or exactly two values: start_session end_session")
+
+    if len(args.session_range) == 2:
+        start_session, end_session = args.session_range
+        if start_session > end_session:
+            parser.error("start_session cannot be greater than end_session")
+    else:
+        start_session, end_session = None, None
+
+    if args.components is None:
+        components = COMPONENT_VALUES
+    else:
+        invalid_components = [value for value in args.components if value <= 0]
+        if invalid_components:
+            parser.error(
+                "--components values must be positive integers. "
+                f"Invalid values: {invalid_components}"
+            )
+        components = args.components
+
+    return start_session, end_session, components
 
 
 def save_csv(rows, save_path):
@@ -93,15 +111,15 @@ def build_summary_row(csp_components, fold_results):
 
 
 def main():
+    start_session, end_session, component_values = parse_args()
     preflight_wideband_inputs()
-    start_session, end_session = get_session_range_from_cli()
 
     print("Session wideband window dosyalari yukleniyor...")
     session_data = load_all_sessions(start_session, end_session)
 
     summary_rows = []
 
-    for csp_components in COMPONENT_VALUES:
+    for csp_components in component_values:
         print(f"\n===== CSP COMPONENT ABLATION: {csp_components} =====")
 
         fold_results, _ = run_loso_csp_5band_baseline(
