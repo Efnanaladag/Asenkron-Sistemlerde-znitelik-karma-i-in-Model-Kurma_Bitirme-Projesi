@@ -11,6 +11,31 @@ from train_csp_5band_fs_baseline import run_loso_csp_5band_fs_baseline
 
 RESULTS_FOLDER = os.path.join(config.OUTPUT_DIR, "ablation_results")
 K_VALUES = [5, 10, 15, 20, "all"]
+WIDEBAND_WINDOW_FOLDER = os.path.join(config.OUTPUT_DIR, "window_data_wideband")
+EXPECTED_WIDEBAND_WINDOW_COUNT = 11
+
+
+def preflight_wideband_inputs():
+    print("Current working directory:", os.getcwd())
+
+    if not os.path.isdir(WIDEBAND_WINDOW_FOLDER):
+        found_count = 0
+    else:
+        found_count = len(
+            [
+                filename for filename in os.listdir(WIDEBAND_WINDOW_FOLDER)
+                if filename.startswith("session_")
+                and filename.endswith("_wideband_windows.npz")
+            ]
+        )
+
+    print("Wideband window file count:", found_count)
+
+    if found_count != EXPECTED_WIDEBAND_WINDOW_COUNT:
+        raise RuntimeError(
+            f"Expected 11 wideband window files before ablation, found {found_count}. "
+            "Run windowing_wideband.py for sessions 1..11 first."
+        )
 
 
 def get_session_range_from_cli():
@@ -68,6 +93,7 @@ def build_summary_row(k_value, fold_results):
 
 
 def main():
+    preflight_wideband_inputs()
     start_session, end_session = get_session_range_from_cli()
 
     print("Session wideband window dosyalari yukleniyor...")

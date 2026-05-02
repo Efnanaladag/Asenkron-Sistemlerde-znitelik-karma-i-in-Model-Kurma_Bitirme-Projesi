@@ -105,3 +105,8 @@ datasets/
 *.bak
 *.swp
 *.swo
+
+.matplotlib/
+outputs_buggy_restored_*/
+downloaded_kernel_output/
+*.zip
