@@ -139,6 +139,11 @@ components remains the original/default strong baseline. The 8-component setup
 should be described as an exploratory improved candidate, not as a
 pre-registered final model.
 
+`analyze_component_stats.py` summarizes paired 4-vs-8 fold deltas with a
+Wilcoxon signed-rank test, bootstrap CI, and effect size. This is supporting
+exploratory analysis only; nested LOSO would be needed for unbiased component
+selection.
+
 ## XAI / Band Importance Diagnostic
 
 `analyze_csp_band_importance.py` runs LOSO-session diagnostics for the 5-band
@@ -214,3 +219,4 @@ python summarize_csp_ablation.py --results-dir outputs/csp_ablation_results_orig
 - `check_project_outputs.py`: validate clean generated outputs
 - `summarize_csp_ablation.py`: summarize existing ablation CSVs
 - `analyze_csp_band_importance.py`: run post-hoc CSP band diagnostics
+- `analyze_component_stats.py`: summarize paired CSP component ablation deltas from existing CSVs
