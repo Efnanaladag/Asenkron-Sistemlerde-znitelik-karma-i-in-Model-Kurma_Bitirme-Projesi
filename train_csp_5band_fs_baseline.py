@@ -13,6 +13,7 @@ from train_csp_5band_baseline import (
     build_5band_csp_features,
     build_loso_folds,
     build_train_test_data,
+    resolve_csp_components,
     sort_session_ids,
 )
 
@@ -30,21 +31,33 @@ K_BEST_DEFAULT = 10
 # 2) K-BEST YARDIMCI FONKSIYON
 # =========================================================
 
-def get_k_best_value(n_features):
+def get_k_best_value(n_features, k_best=None):
     """
     Guvenli k degerini belirler.
     """
     if n_features <= 0:
         raise ValueError("Feature sayisi sifir veya negatif olamaz.")
 
-    return min(K_BEST_DEFAULT, n_features)
+    # None -> mevcut varsayilan davranis (k=10 veya feature sayisi kadar)
+    if k_best is None:
+        return min(K_BEST_DEFAULT, n_features), False
+
+    # all -> feature selection bypass
+    if isinstance(k_best, str) and k_best.lower() == "all":
+        return n_features, True
+
+    k_value = int(k_best)
+    if k_value <= 0:
+        raise ValueError("k_best pozitif bir tamsayi veya 'all' olmali.")
+
+    return min(k_value, n_features), False
 
 
 # =========================================================
 # 3) TEK FOLD CALISTIR
 # =========================================================
 
-def run_one_fold(X_train, y_train, X_test, y_test):
+def run_one_fold(X_train, y_train, X_test, y_test, csp_components=None, k_best=None):
     """
     Tek bir LOSO fold'unu calistirir.
 
@@ -54,19 +67,33 @@ def run_one_fold(X_train, y_train, X_test, y_test):
     - scaler sadece train'de fit edilir
     - test tarafi sadece transform edilir
     """
+    csp_components_value = resolve_csp_components(csp_components)
+
+    n_channels = int(X_train.shape[1])
+    if csp_components_value > n_channels:
+        raise ValueError(
+            f"csp_components ({csp_components_value}) kanal sayisindan buyuk olamaz "
+            f"(n_channels={n_channels})."
+        )
+
     X_train_feat, X_test_feat = build_5band_csp_features(
         X_train,
         y_train,
         X_test,
-        sfreq=float(config.TARGET_SFREQ)
+        sfreq=float(config.TARGET_SFREQ),
+        csp_components=csp_components_value
     )
 
-    k_value = get_k_best_value(X_train_feat.shape[1])
-    score_func = partial(mutual_info_classif, random_state=int(config.RANDOM_SEED))
+    k_value, bypass_fs = get_k_best_value(X_train_feat.shape[1], k_best=k_best)
 
-    selector = SelectKBest(score_func=score_func, k=k_value)
-    X_train_sel = selector.fit_transform(X_train_feat, y_train)
-    X_test_sel = selector.transform(X_test_feat)
+    if bypass_fs:
+        X_train_sel = X_train_feat
+        X_test_sel = X_test_feat
+    else:
+        score_func = partial(mutual_info_classif, random_state=int(config.RANDOM_SEED))
+        selector = SelectKBest(score_func=score_func, k=k_value)
+        X_train_sel = selector.fit_transform(X_train_feat, y_train)
+        X_test_sel = selector.transform(X_test_feat)
 
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train_sel)
@@ -93,11 +120,12 @@ def run_one_fold(X_train, y_train, X_test, y_test):
 # 4) TUM FOLD'LARI CALISTIR
 # =========================================================
 
-def run_loso_csp_5band_fs_baseline(session_data, verbose=True):
+def run_loso_csp_5band_fs_baseline(session_data, verbose=True, csp_components=None, k_best=None):
     """
     Tum LOSO-session fold'larini 5-band CSP + FS + LDA ile calistirir.
     """
     folds = build_loso_folds(session_data)
+    csp_components_value = resolve_csp_components(csp_components)
 
     fold_results = []
     all_predictions = []
@@ -118,7 +146,12 @@ def run_loso_csp_5band_fs_baseline(session_data, verbose=True):
             print("X_test shape:", X_test.shape)
 
         auc, bal_acc, cm, y_pred, y_score, k_value = run_one_fold(
-            X_train, y_train, X_test, y_test
+            X_train,
+            y_train,
+            X_test,
+            y_test,
+            csp_components=csp_components_value,
+            k_best=k_best
         )
 
         if verbose:
@@ -135,7 +168,7 @@ def run_loso_csp_5band_fs_baseline(session_data, verbose=True):
             "n_train_samples": len(y_train),
             "n_test_samples": len(y_test),
             "n_bands": 5,
-            "csp_components_per_band": int(config.CSP_COMPONENTS),
+            "csp_components_per_band": csp_components_value,
             "k_best": int(k_value),
             "roc_auc": round(float(auc), 6),
             "balanced_accuracy": round(float(bal_acc), 6),

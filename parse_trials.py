@@ -56,6 +56,32 @@ def sec_to_sample(sec, sfreq):
     return int(round(sec * sfreq))
 
 
+def extract_triallength_sec(raw, annotation_index):
+    """
+    İlgili annotation satırından triallength bilgisini güvenli şekilde çeker.
+    """
+    if not hasattr(raw.annotations, "extras") or raw.annotations.extras is None:
+        return None
+
+    if annotation_index >= len(raw.annotations.extras):
+        return None
+
+    extra = raw.annotations.extras[annotation_index]
+
+    if extra is None or "triallength" not in extra:
+        return None
+
+    try:
+        triallength_sec = float(extra["triallength"])
+    except (TypeError, ValueError):
+        return None
+
+    if triallength_sec <= 0:
+        return None
+
+    return triallength_sec
+
+
 def get_session_raw(subject_data, session_name):
     """
     İstenen session içindeki ilk run'ın raw nesnesini döndürür.
@@ -139,12 +165,10 @@ def parse_trials_from_raw(raw, session_name, run_name):
     Varsayım:
     - annotation onset = cue başlangıcı
     - cue süresi = 2 sn
-    - feedback süresini bir sonraki cue onset'inden çıkarıyoruz
-
-    Not:
-    - Son trial için sonraki onset olmadığı için şimdilik son trial'ı atmaktayız.
+    - feedback süresi = annotation extras içindeki triallength
+    - feedback bitişi = feedback başlangıcı + triallength
     """
-    if len(raw.annotations) < 2:
+    if len(raw.annotations) == 0:
         raise ValueError("Trial parse etmek için yeterli annotation yok.")
 
     sfreq = float(raw.info["sfreq"])
@@ -153,17 +177,20 @@ def parse_trials_from_raw(raw, session_name, run_name):
     onsets = raw.annotations.onset
     labels = raw.annotations.description
 
-    # Son trial'ı şimdilik atmaktayız çünkü bir sonraki onset yok
-    for i in range(len(onsets) - 1):
+    skipped_missing_triallength = 0
+
+    for i in range(len(onsets)):
         current_onset = float(onsets[i])
-        next_onset = float(onsets[i + 1])
         cue_label = str(labels[i])
 
-        feedback_duration_sec = next_onset - current_onset - CUE_DURATION_SEC - ITI_DURATION_SEC
+        triallength_sec = extract_triallength_sec(raw, i)
 
-        # Güvenlik kontrolü
-        if feedback_duration_sec <= 0:
-            print(f"Uyarı: Trial {i+1} için feedback süresi 0 veya negatif çıktı. Trial atlandı.")
+        if triallength_sec is None:
+            skipped_missing_triallength += 1
+            print(
+                f"Uyarı: Trial {i+1} için triallength bulunamadı/geçersiz. "
+                f"Trial bilinçli şekilde atlandı."
+            )
             continue
 
         iti_start_sec = max(0.0, current_onset - ITI_DURATION_SEC)
@@ -173,7 +200,7 @@ def parse_trials_from_raw(raw, session_name, run_name):
         cue_end_sec = cue_start_sec + CUE_DURATION_SEC
 
         feedback_start_sec = cue_end_sec
-        feedback_end_sec = feedback_start_sec + feedback_duration_sec
+        feedback_end_sec = feedback_start_sec + triallength_sec
 
         trial_start_sec = iti_start_sec
         trial_end_sec = feedback_end_sec
@@ -193,7 +220,10 @@ def parse_trials_from_raw(raw, session_name, run_name):
             "feedback_end_sec": round(feedback_end_sec, 4),
             "trial_end_sec": round(trial_end_sec, 4),
 
-            "feedback_duration_sec": round(feedback_duration_sec, 4),
+            "triallength_sec": round(triallength_sec, 4),
+            "feedback_duration_sec": round(triallength_sec, 4),
+            "source_trial_index": i,
+            "feedback_semantic": "feedback_start_plus_triallength",
 
             "trial_start_sample": sec_to_sample(trial_start_sec, sfreq),
             "iti_start_sample": sec_to_sample(iti_start_sec, sfreq),
@@ -206,6 +236,12 @@ def parse_trials_from_raw(raw, session_name, run_name):
         }
 
         rows.append(row)
+
+    if skipped_missing_triallength > 0:
+        print(
+            f"Bilgi: triallength eksik/geçersiz olduğu için atlanan trial sayısı: "
+            f"{skipped_missing_triallength}"
+        )
 
     return rows
 
