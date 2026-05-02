@@ -1,90 +1,45 @@
-# Bitirme Projesi - EEG Control vs Non-Control (Single Subject, Multi Session)
+# Stieger2021 EEG Control vs Non-Control Pipeline
 
-Bu repo, Stieger2021 veri seti uzerinde tek subject ve coklu session kurulumunda
-`control` vs `non-control` siniflandirma denemeleri icin hazirlanmistir.
+## Project Purpose
 
-## 1) Problem Tanimi
+This repository contains a single-subject, multi-session EEG pipeline for the
+Stieger2021 pseudo-online control vs non-control classification task.
 
-- Problem: `control` vs `non-control`
-- Etiketleme:
-  - `0 = ITI` (non-control)
-  - `1 = feedback` (control)
-- `cue` segmenti siniflandirmaya dahil edilmez.
-- Metodolojik hedef: `pseudo-online`
-- Veri kapsami: `tek subject`, `coklu session`
-- Ana split: `LOSO-session` (Leave-One-Session-Out)
-- Birincil metrik: `ROC-AUC`
+- Task: pseudo-online `control` vs `non-control`
+- Label `0`: ITI / non-control
+- Label `1`: feedback / control
+- Cue periods are excluded from classification
+- Main evaluation: LOSO-session, leave one session out
+- Primary metric: ROC-AUC, with balanced accuracy reported alongside it
 
-## 2) Proje Yapisi
+## Critical Output And Data Warning
 
-Ana dosyalar:
+Do not commit generated project outputs.
 
-- Veri ve parse:
-  - `load_stieger.py`
-  - `parse_trials.py`
-  - `build_labels.py`
-- Pencereleme:
-  - `windowing.py` (8-30 Hz)
-  - `windowing_wideband.py` (0.5-50 Hz)
-- Ozellik:
-  - `features_bandpower.py`
-- Egitim:
-  - `train_baseline.py`
-  - `train_csp_baseline.py`
-  - `train_csp_5band_baseline.py`
-  - `train_csp_5band_fs_baseline.py`
-- Runner:
-  - `run_cross_session.py`
-  - `run_cross_session_csp.py`
-  - `run_cross_session_csp_5band.py`
-  - `run_cross_session_csp_5band_fs.py`
-  - `run_batch_pipeline.py`
+- Do not commit `outputs/`.
+- Do not commit generated CSV, NPZ, logs, figures, or model artifacts.
+- Do not use `git add .` in this repo.
+- `outputs/` is ignored intentionally by `.gitignore`.
+- Local `outputs/` folders may be stale, incomplete, or from old/buggy runs.
+- Do not infer clean pipeline status from local `outputs/label_tables/`,
+  `outputs/window_data/`, `outputs/window_data_wideband/`, or old
+  `outputs/ablation_results/`.
+- In the current local repo, only `outputs/csp_ablation_results_original/`
+  should be treated as trusted manually downloaded Kaggle CSP ablation CSVs.
 
-## 3) Pipeline Akisi
-
-Session bazli veri uretimi:
-
-1. `parse_trials.py <session_id>`
-2. `build_labels.py <session_id>`
-3. `windowing.py <session_id>` (veya wideband icin `windowing_wideband.py <session_id>`)
-4. `features_bandpower.py <session_id>` (bandpower hattinda)
-
-Cross-session egitim/degerlendirme:
-
-- Bandpower + LDA:
-  - `run_cross_session.py`
-- Tek bant CSP + LDA:
-  - `run_cross_session_csp.py`
-- Canonical 5-band CSP + LDA:
-  - `run_cross_session_csp_5band.py`
-- Canonical 5-band CSP + FS + LDA:
-  - `run_cross_session_csp_5band_fs.py`
-
-Tum sessionlar icin batch veri uretimi:
-
-- `run_batch_pipeline.py`
-
-## 4) Kurulum
-
-Not: Repo icinde `requirements.txt` bulunmuyorsa gerekli kutuphaneleri manuel kurmaniz gerekir.
-Kod tabani asagidaki kutuphanelere dayanir:
-
-- `numpy`
-- `scikit-learn`
-- `mne`
-- `moabb`
-
-Ornek (PowerShell):
+For clean reruns, regenerate outputs from the fixed code and verify them with:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install numpy scikit-learn mne moabb
+python check_project_outputs.py
 ```
 
-## 5) Hizli Baslangic (Ornek)
+This validation should pass only after clean label, normal-window, and wideband
+window outputs have been generated for all 11 sessions. It may fail on local
+machines if only partial or old outputs are present.
 
-Tek session test:
+## Basic Pipeline Commands
+
+Per-session manual example:
 
 ```powershell
 python parse_trials.py 1
@@ -93,67 +48,128 @@ python windowing.py 1
 python features_bandpower.py 1
 ```
 
-Tum sessionlar (subject config icinden okunur):
+All-session normal pipeline:
 
 ```powershell
 python run_batch_pipeline.py
 ```
 
-Bandpower cross-session:
+Wideband windows for 5-band CSP:
 
 ```powershell
-python run_cross_session.py
+python windowing_wideband.py 1
+python windowing_wideband.py 2
+python windowing_wideband.py 3
+python windowing_wideband.py 4
+python windowing_wideband.py 5
+python windowing_wideband.py 6
+python windowing_wideband.py 7
+python windowing_wideband.py 8
+python windowing_wideband.py 9
+python windowing_wideband.py 10
+python windowing_wideband.py 11
 ```
 
-Tek bant CSP cross-session:
+Output validation, to run in the actual clean output environment:
 
 ```powershell
-python run_cross_session_csp.py
+python check_project_outputs.py
 ```
 
-5-band CSP cross-session:
+5-band CSP baseline:
 
 ```powershell
 python run_cross_session_csp_5band.py
-python run_cross_session_csp_5band_fs.py
 ```
 
-## 6) Cikti Klasorleri
+CSP component ablation:
 
-Tum ciktilar `outputs/` altina yazilir.
+```powershell
+python run_ablation_csp_components.py
+```
 
-Tipik alt klasorler:
+Targeted CSP component ablation:
 
-- `outputs/trial_tables/`
+```powershell
+python run_ablation_csp_components.py --components 8
+python run_ablation_csp_components.py --components 4 8
+python run_ablation_csp_components.py 1 3 --components 8
+```
+
+Summarize clean ablation outputs generated in the current run:
+
+```powershell
+python summarize_csp_ablation.py --results-dir outputs/ablation_results
+```
+
+Summarize downloaded trusted Kaggle ablation CSVs:
+
+```powershell
+python summarize_csp_ablation.py --results-dir outputs/csp_ablation_results_original
+```
+
+## Expected Output Folders
+
+Generated outputs are written under `outputs/`, which is intentionally ignored.
+Common output folders are:
+
 - `outputs/label_tables/`
 - `outputs/window_data/`
 - `outputs/window_data_wideband/`
-- `outputs/features/`
-- `outputs/baseline_results/`
-- `outputs/logs/`
+- `outputs/ablation_results/`
+- `outputs/csp_ablation_results_original/` for manually downloaded trusted
+  Kaggle CSP ablation CSVs
 
-## 7) Metodolojik Kurallar (Leakage Kirmizi Cizgi)
+## Current Confirmed CSP Component Ablation Result
 
-Bu projede su kurallar korunmalidir:
+The values below come from the trusted manually downloaded Kaggle ablation CSVs
+in `outputs/csp_ablation_results_original/`. They should not be inferred from
+arbitrary local old outputs.
 
-- Split oncesi supervised fit yapma.
-- Session shuffle yapma.
-- Scaler yalnizca train tarafinda fit edilmeli.
-- CSP yalnizca train tarafinda fit edilmeli.
-- Feature selection yalnizca train tarafinda fit edilmeli.
+| CSP components | Mean ROC-AUC | Mean Balanced Accuracy | Fold count |
+| --- | ---: | ---: | ---: |
+| 2 | 0.904399 | 0.718756 | 11 |
+| 4 | 0.935139 | 0.791548 | 11 |
+| 6 | 0.946548 | 0.802168 | 11 |
+| 8 | 0.949027 | 0.810928 | 11 |
 
-## 8) Konfigurasyon
+Eight CSP components had the best observed exploratory ablation result. Four
+components remains the original/default strong baseline. The 8-component setup
+should be described as an exploratory improved candidate, not as a
+pre-registered final model.
 
-Temel ayarlar `config.py` icindedir:
+## Utility Scripts
 
-- `SUBJECT_ID`
-- Frekans bantlari (`LOW_FREQ`, `HIGH_FREQ`, `BROAD_LOW_FREQ`, `BROAD_HIGH_FREQ`)
-- `WINDOW_SIZE_SEC`, `STRIDE_SEC`
-- `CSP_COMPONENTS`
-- `RANDOM_SEED`
+`check_project_outputs.py` validates that clean project outputs are present and
+that normal and wideband label counts match session by session. Run it in the
+environment where all 11 clean label/window/wideband outputs have been
+generated.
 
-## 9) Notlar
+`summarize_csp_ablation.py` summarizes existing CSP component ablation CSVs. It
+does not train models. For local trusted downloaded ablation results, use:
 
-- Bu repo su anda tek subject akisina odaklidir.
-- Sonuc dosyalari ayni isimlere yazilabildigi icin farkli kosulari karsilastirirken
-  hangi session kapsami ile uretildigini not etmek onemlidir.
+```powershell
+python summarize_csp_ablation.py --results-dir outputs/csp_ablation_results_original
+```
+
+## Methodological Guardrails
+
+- Do not fit supervised transforms before splitting.
+- Do not shuffle sessions across the LOSO split.
+- Fit scalers only on the training side of each fold.
+- Fit CSP only on the training side of each fold.
+- Fit feature selection only on the training side of each fold.
+
+## Main Files
+
+- `parse_trials.py`: parse Stieger2021 trial timing into trial tables
+- `build_labels.py`: build ITI vs feedback labels
+- `windowing.py`: create normal-band windows
+- `windowing_wideband.py`: create wideband windows for 5-band CSP
+- `features_bandpower.py`: create bandpower features
+- `run_batch_pipeline.py`: run the normal per-session output pipeline
+- `run_cross_session_csp_5band.py`: run the 5-band CSP LOSO baseline
+- `run_ablation_csp_components.py`: run CSP component ablations
+- `run_ablation_fs_k.py`: run feature-selection-k ablations
+- `check_project_outputs.py`: validate clean generated outputs
+- `summarize_csp_ablation.py`: summarize existing ablation CSVs
