@@ -6,6 +6,8 @@ import sys
 
 import numpy as np
 
+from experiment_manifest import write_manifest
+
 
 DEFAULT_RESULTS_DIR = Path("outputs") / "ablation_results"
 SESSION_COLUMNS = ["test_session", "session", "session_id", "fold", "fold_id"]
@@ -299,6 +301,19 @@ def main():
             row["seed"] = args.seed
 
         output_prefix = results_dir / args.output_prefix
+        write_manifest(
+            results_dir,
+            script_name=Path(__file__).name,
+            cli_args=vars(args),
+            input_dir=results_dir,
+            output_dir_value=results_dir,
+            extra={
+                "component_a_file": path_a,
+                "component_b_file": path_b,
+                "output_prefix": args.output_prefix,
+                "analysis_type": "paired fold-level exploratory diagnostic",
+            },
+        )
         write_csv(Path(f"{output_prefix}_paired_deltas.csv"), paired_rows)
         write_csv(Path(f"{output_prefix}_summary.csv"), summary_rows)
         write_json(

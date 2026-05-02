@@ -5,6 +5,7 @@ import os
 import numpy as np
 
 import config
+from experiment_manifest import write_manifest
 from run_cross_session_csp_5band import load_all_sessions
 from train_csp_5band_baseline import run_loso_csp_5band_baseline
 
@@ -113,6 +114,21 @@ def build_summary_row(csp_components, fold_results):
 def main():
     start_session, end_session, component_values = parse_args()
     preflight_wideband_inputs()
+    write_manifest(
+        RESULTS_FOLDER,
+        script_name=os.path.basename(__file__),
+        cli_args={
+            "start_session": start_session,
+            "end_session": end_session,
+            "components": component_values,
+        },
+        input_dir=WIDEBAND_WINDOW_FOLDER,
+        output_dir_value=RESULTS_FOLDER,
+        extra={
+            "evaluation": "LOSO-session",
+            "model_family": "5-band CSP + LDA",
+        },
+    )
 
     print("Session wideband window dosyalari yukleniyor...")
     session_data = load_all_sessions(start_session, end_session)

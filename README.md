@@ -185,6 +185,10 @@ choice.
 
 ## Utility Scripts
 
+Selected experiment and analysis scripts write `manifest.json` into their output
+directory. The manifest records the command, git commit/branch, runtime
+environment, and run settings for reproducibility.
+
 `check_project_outputs.py` validates that clean project outputs are present and
 that normal and wideband label counts match session by session. Run it in the
 environment where all 11 clean label/window/wideband outputs have been
