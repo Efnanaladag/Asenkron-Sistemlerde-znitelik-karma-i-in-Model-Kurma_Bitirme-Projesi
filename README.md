@@ -119,6 +119,7 @@ Common output folders are:
 - `outputs/ablation_results/`
 - `outputs/csp_ablation_results_original/` for manually downloaded trusted
   Kaggle CSP ablation CSVs
+- `outputs/xai_results_recovered/` for recovered report-level XAI summary CSVs
 
 ## Current Confirmed CSP Component Ablation Result
 
@@ -137,6 +138,45 @@ Eight CSP components had the best observed exploratory ablation result. Four
 components remains the original/default strong baseline. The 8-component setup
 should be described as an exploratory improved candidate, not as a
 pre-registered final model.
+
+## XAI / Band Importance Diagnostic
+
+`analyze_csp_band_importance.py` runs LOSO-session diagnostics for the 5-band
+CSP + LDA model. For each fold it fits CSP, the scaler, and LDA on train
+sessions only, evaluates the held-out session, and can compare fold metrics
+against existing CSP ablation CSVs. It also supports band-level permutation
+importance.
+
+Use band permutation importance as the primary XAI diagnostic. LDA coefficient
+magnitude is retained only as a secondary post-hoc diagnostic because it can be
+numerically unstable and should not be treated as the main scientific evidence.
+In recovered results, gamma can appear very large by coefficient magnitude, but
+it has low permutation importance.
+
+Small smoke run:
+
+```powershell
+python analyze_csp_band_importance.py --input-dir outputs/window_data_wideband --output-dir outputs/xai_results --components 4 --test-sessions 1 --include-permutation --permutation-repeats 5 --compare-ablation-dir outputs/ablation_results
+```
+
+Full diagnostic run:
+
+```powershell
+python analyze_csp_band_importance.py --input-dir outputs/window_data_wideband --output-dir outputs/xai_results --components 4 8 --include-permutation --permutation-repeats 5 --compare-ablation-dir outputs/ablation_results
+```
+
+Recovered artifact caveat: `outputs/xai_results_recovered/` contains
+report-level recovered summary CSVs. The full raw XAI output folders for c4/c8
+were lost after a Kaggle runtime restart. These recovered summaries are suitable
+for cautious report-level discussion, but they are not a complete raw artifact
+archive. For full reproducibility, repeat the XAI run and save artifacts
+immediately.
+
+Recommended reporting language: the 4-component model shows alpha and beta
+contribution, while the 8-component model shows stronger beta-band dominance.
+This is a post-hoc diagnostic, not causal proof. The 8-component setup remains
+the best observed exploratory component setting, not a final unbiased model
+choice.
 
 ## Utility Scripts
 
@@ -173,3 +213,4 @@ python summarize_csp_ablation.py --results-dir outputs/csp_ablation_results_orig
 - `run_ablation_fs_k.py`: run feature-selection-k ablations
 - `check_project_outputs.py`: validate clean generated outputs
 - `summarize_csp_ablation.py`: summarize existing ablation CSVs
+- `analyze_csp_band_importance.py`: run post-hoc CSP band diagnostics
