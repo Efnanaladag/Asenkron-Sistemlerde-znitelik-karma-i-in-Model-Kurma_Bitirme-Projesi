@@ -11,6 +11,7 @@ from sklearn.metrics import balanced_accuracy_score, confusion_matrix, roc_auc_s
 from sklearn.preprocessing import StandardScaler
 
 import config
+from experiment_manifest import write_manifest
 from train_csp_5band_baseline import (
     apply_bandpass_to_epochs,
     build_loso_folds,
@@ -768,6 +769,17 @@ def main():
     output_dir = derive_output_dir(args.output_dir, args.test_sessions)
     provenance = make_provenance(args, output_dir, selected_test_sessions)
     rng = np.random.default_rng(args.random_seed)
+    write_manifest(
+        output_dir,
+        script_name=SCRIPT_NAME,
+        cli_args=vars(args),
+        input_dir=args.input_dir,
+        output_dir_value=output_dir,
+        extra={
+            "selected_test_sessions": selected_test_sessions,
+            "component_settings": args.components,
+        },
+    )
 
     print("Current working directory:", Path.cwd())
     print("Input directory:", args.input_dir.resolve())
