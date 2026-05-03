@@ -9,6 +9,8 @@ from run_cross_session_csp_5band_fs import load_all_sessions
 from train_csp_5band_fs_baseline import run_loso_csp_5band_fs_baseline
 
 
+# Bu script, 5-band CSP sonrasi feature selection k degerinin etkisini karsilastirir.
+# K secimi burada post-hoc ablation amaclidir; nihai tarafsiz secim icin nested LOSO gerekir.
 RESULTS_FOLDER = os.path.join(config.OUTPUT_DIR, "ablation_results")
 K_VALUES = [5, 10, 15, 20, "all"]
 WIDEBAND_WINDOW_FOLDER = os.path.join(config.OUTPUT_DIR, "window_data_wideband")
@@ -18,6 +20,8 @@ EXPECTED_WIDEBAND_WINDOW_COUNT = 11
 def preflight_wideband_inputs():
     print("Current working directory:", os.getcwd())
 
+    # Ablation baslamadan once tum wideband pencere dosyalarinin hazir oldugu dogrulanir.
+    # Eksik session ile kosmak fold sayisini degistirir ve sonuclari raporla karsilastirmayi bozar.
     if not os.path.isdir(WIDEBAND_WINDOW_FOLDER):
         found_count = 0
     else:
@@ -64,6 +68,8 @@ def get_session_range_from_cli():
 
 
 def save_csv(rows, save_path):
+    # Her k degeri ve ozet ayri CSV'ye yazilir.
+    # Bu cikti bir sonraki analizlerde tekrar okunacak deney artefaktidir.
     if len(rows) == 0:
         raise ValueError(f"Kaydedilecek satir yok: {save_path}")
 
@@ -101,6 +107,8 @@ def main():
 
     summary_rows = []
 
+    # Ayni session_data uzerinde k degeri degistirilir.
+    # Feature selection fit'i training fonksiyonunda her LOSO fold'unun train tarafinda kalir.
     for k_value in K_VALUES:
         print(f"\n===== FS k ABLATION: {k_value} =====")
 

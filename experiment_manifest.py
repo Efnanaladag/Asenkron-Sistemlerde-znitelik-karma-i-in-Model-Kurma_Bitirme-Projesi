@@ -10,6 +10,8 @@ MANIFEST_FILENAME = "manifest.json"
 CAUTION_TEXT = "Generated outputs are local artifacts and should not be committed."
 
 
+# Manifest, deney ciktisinin hangi kod, CLI argumani ve ortamla uretildigini belgelemek icindir.
+# Bu dosya model performansini degil, tekrar uretilebilirlik bilgisini saklar.
 def run_git_command(args):
     try:
         result = subprocess.run(
@@ -24,6 +26,8 @@ def run_git_command(args):
 
 
 def get_git_info():
+    # Git commit ve dirty bilgisi, ayni CSV sonucunun hangi kod durumundan geldigini anlamayi saglar.
+    # Git komutu calismazsa deney akisi durmaz; alanlar None/unknown olarak yazilir.
     commit_hash = run_git_command(["rev-parse", "HEAD"])
     branch = run_git_command(["rev-parse", "--abbrev-ref", "HEAD"])
     status_short = run_git_command(["status", "--short"])
@@ -42,6 +46,7 @@ def get_git_info():
 
 
 def make_json_safe(value):
+    # Path ve tuple gibi JSON'un dogrudan yazamadigi tipler kayit oncesi sade tipe cevrilir.
     if isinstance(value, Path):
         return str(value)
     if isinstance(value, dict):
@@ -62,6 +67,8 @@ def write_manifest(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
+    # Manifest alanlari, bir deney sonucunu geriye donuk takip etmek icin minimum iz birakir.
+    # argv ve cli_args birlikte tutulur; biri ham komutu, digeri scriptin anlamlandirdigi degerleri gosterir.
     manifest = {
         "created_at": datetime.now(timezone.utc).isoformat(),
         "script_name": script_name,
@@ -83,6 +90,7 @@ def write_manifest(
     }
 
     if extra:
+        # Script'e ozel ek bilgiler burada tutulur; ana manifest semasi bozulmadan genisletilebilir.
         manifest["extra"] = make_json_safe(extra)
 
     manifest_path = output_path / MANIFEST_FILENAME

@@ -6,6 +6,11 @@ import sys
 import numpy as np
 
 
+# =========================================================
+# 1) BEKLENEN CIKTI SOZLESMESI
+# =========================================================
+# Bu script model egitmez; uretilen CSV/NPZ artefaktlarinin proje metodolojisine uydugunu denetler.
+# Amac, eski hatali ciktinin veya eksik session dosyasinin rapora sessizce karismasini engellemektir.
 EXPECTED_SESSIONS = range(1, 12)
 EXPECTED_COUNT = 11
 OUTPUT_DIR = Path("outputs")
@@ -31,6 +36,7 @@ METADATA_COMPARE_COLUMNS = [
 
 
 def fail(message, category, failed_categories):
+    # Hatalar kategori bazinda toplanir; boylece final verdict hangi kontrol grubunun bozuldugunu gosterir.
     print(f"ERROR: {message}")
     failed_categories.add(category)
     return False
@@ -116,6 +122,8 @@ def check_buggy_restored_folders():
 
 
 def check_required_output_files(failed_categories):
+    # Her ana asama icin 11 session dosyasi beklenir.
+    # Dosya sayisi eksikse LOSO fold sayisi ve raporlanan ortalamalar degisir.
     ok = True
     ok = check_file_count(
         TRIAL_DIR,
@@ -149,6 +157,8 @@ def check_required_output_files(failed_categories):
 
 
 def check_window_labels(failed_categories):
+    # Normal ve wideband pencere dosyalari ayni segmentlerden turemis olmali.
+    # Label sayilari ayrisirsa 5-band deneyleri bandpower/CSP baseline ile adil karsilastirilamaz.
     rows = []
     ok = True
 
@@ -211,6 +221,8 @@ def check_window_labels(failed_categories):
 
 
 def check_trial_tables(failed_categories):
+    # Trial tablosu, feedback baslangici ve triallength mantiginin dogru parse edildigini denetler.
+    # Buradaki semantic kontrol, feedback suresinin yanlis yorumlandigi eski bug'lari yakalamak icindir.
     ok = True
     rows = []
 
@@ -345,6 +357,8 @@ def compare_optional_counts(column, normal_rows, normal_fields, wide_rows, wide_
 
 
 def check_window_metadata(failed_categories):
+    # Metadata eslesmesi, X/y satirlarinin hangi trial ve zaman araligindan geldigini korur.
+    # Normal ve wideband metadata ayrisirsa sonraki model tahminleri yanlis pencereye baglanabilir.
     ok = True
 
     for session in EXPECTED_SESSIONS:
@@ -416,6 +430,8 @@ def print_verdict(failed_categories):
 
 
 def main():
+    # Kontroller sadece okuma ve raporlama yapar; cikti dosyalarini degistirmez.
+    # Hata varsa non-zero exit ile batch/CI benzeri akislarin durmasini saglar.
     failed_categories = set()
 
     print_paths()

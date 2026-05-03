@@ -83,6 +83,8 @@ def load_all_sessions():
     session_files = get_session_feature_files()
     sorted_ids = sort_session_ids(list(session_files.keys()))
 
+    # Dosya adindan gelen session id'leri sayisal siraya dizilir, random shuffle yapilmaz.
+    # Session-aware degerlendirme icin fold sirasi izlenebilir ve tekrar uretilebilir kalir.
     session_data = {}
 
     for session_id in sorted_ids:
@@ -104,6 +106,8 @@ def save_fold_results(fold_results):
     """
     Fold sonuçlarını CSV olarak kaydeder.
     """
+    # Fold CSV, raporda kullanilacak ana metrikleri ve hangi session'in testte kaldigini saklar.
+    # Bu dosya daha sonra sonuc karsilastirmalari icin tekrar okunabilir.
     if len(fold_results) == 0:
         raise ValueError("Kaydedilecek fold sonucu yok.")
 
@@ -125,6 +129,8 @@ def save_predictions(all_predictions):
     """
     Test fold tahminlerini CSV olarak kaydeder.
     """
+    # Tahmin CSV'si pencere bazinda true/pred/score saklar.
+    # Yanlis siniflanan ITI veya feedback pencerelerini sonradan incelemek icin gereklidir.
     if len(all_predictions) == 0:
         raise ValueError("Kaydedilecek tahmin yok.")
 

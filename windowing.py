@@ -122,6 +122,8 @@ def preprocess_raw(raw):
     """
     raw_proc = raw.copy()
 
+    # Kanal secimi, analizi motor korteksle iliskili elektrotlara odaklar.
+    # Eksik kanal varsa sessizce yeni kanal uretmek yerine sadece mevcut kanallar kullanilir.
     # Sadece var olan motor kanalları seç
     existing_channels = [ch for ch in MOTOR_CHANNELS if ch in raw_proc.ch_names]
 
@@ -130,6 +132,8 @@ def preprocess_raw(raw):
 
     raw_proc.pick(existing_channels)
 
+    # Average reference, EEG'de kanallar arasindaki ortak referans etkisini azaltmak icin kullanilir.
+    # Bu adim pencere cikarmadan once uygulanir ki tum pencereler ayni referansla temsil edilsin.
     # Basit ve anlaşılır referans
     raw_proc.set_eeg_reference("average", projection=False)
 
@@ -182,6 +186,8 @@ def extract_windows_from_segment(raw_proc, segment_row, start_window_id):
     end_sec = float(segment_row["end_sec"])
     duration_sec = float(segment_row["duration_sec"])
 
+    # Pencere boyundan kisa segmentler model girdisine donusturulmez.
+    # dropped_row ile neden atlandigi kaydedilir; boylece veri kaybi izlenebilir kalir.
     if segment_too_short(start_sec, end_sec):
         dropped_row = {
             "segment_id": segment_id,
@@ -220,6 +226,8 @@ def extract_windows_from_segment(raw_proc, segment_row, start_window_id):
 
         windows_data.append(window_data)
 
+        # Metadata satiri, X icindeki pencere sirasiyla birebir ayni sirada tutulur.
+        # Bu eslesme bozulursa tahminler yanlis trial/session bilgisiyle raporlanabilir.
         meta_row = {
             "window_id": window_id,
             "segment_id": segment_id,
@@ -274,6 +282,8 @@ def build_all_windows(raw_proc, label_rows):
     if len(all_window_data) == 0:
         raise ValueError("Hiç pencere üretilemedi.")
 
+    # X ve y ayni metadata listesinden ayni sirayla uretilir.
+    # Bu hizalama, feature ve model sonuclarinin dogru pencereye baglanmasini saglar.
     X = np.stack(all_window_data, axis=0)   # (n_windows, n_channels, n_samples)
     y = np.array([row["label"] for row in all_window_meta], dtype=int)
 
@@ -327,6 +337,8 @@ def save_metadata_csv(window_meta, session_name):
     """
     Pencere metadata'sını CSV olarak kaydeder.
     """
+    # Metadata CSV, her pencerenin hangi trial ve segmentten geldigini tekrar izlemek icindir.
+    # Raporlama ve hata ayiklama icin NPZ dosyasinin yaninda tutulur.
     save_dir = os.path.join(config.OUTPUT_DIR, "window_data")
     os.makedirs(save_dir, exist_ok=True)
 
@@ -346,6 +358,8 @@ def save_dropped_segments_csv(dropped_rows, session_name):  # AI önerisi
     """
     Kısa kaldığı için dışlanan segmentleri kaydeder.
     """
+    # Atlanan segmentler bos olsa bile dosya yazilir.
+    # Boylece her session icin veri eleme karari acik ve tekrar kontrol edilebilir olur.
     save_dir = os.path.join(config.OUTPUT_DIR, "window_data")
     os.makedirs(save_dir, exist_ok=True)
 
@@ -372,6 +386,8 @@ def save_npz(X, y, session_name):
     """
     Gerçek EEG pencerelerini npz dosyası olarak kaydeder.
     """
+    # NPZ dosyasi egitim hattinin ana girdisidir: X ham pencere sinyali, y ise 0/1 etiketidir.
+    # Bu artefakt tekrar uretilebilirlik icin session adi ile sabit dosya ismine kaydedilir.
     save_dir = os.path.join(config.OUTPUT_DIR, "window_data")
     os.makedirs(save_dir, exist_ok=True)
 

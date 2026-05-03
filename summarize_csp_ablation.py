@@ -12,6 +12,8 @@ INPUT_PATTERN = "csp_components_*_loso_results.csv"
 REQUIRED_COLUMNS = {"test_session", "roc_auc", "balanced_accuracy"}
 
 
+# Bu script yeni model egitmez; mevcut component ablation CSV'lerini ozetler.
+# Ayrica 4 ve 8 component sonuclarini ayni test session bazinda eslestirerek karsilastirir.
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Summarize existing CSP component ablation CSV files."
@@ -26,6 +28,8 @@ def parse_args():
 
 
 def read_rows(path):
+    # Girdi CSV'lerinde test_session ve ana metrikler yoksa ozet yanlis anlam kazanir.
+    # Bu kontrol, ablation ciktisi yerine baska bir CSV'nin yanlislikla verilmesini erken yakalar.
     with path.open("r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         missing = REQUIRED_COLUMNS - set(reader.fieldnames or [])
@@ -44,6 +48,8 @@ def write_rows(path, rows, fieldnames):
 
 
 def csp_components_from_name(path):
+    # Component sayisi dosya adindan parse edilir; satir icindeki metriklerle karistirilmaz.
+    # Sabit adlandirma, ablation klasorundeki dosyalari otomatik toplamayi saglar.
     match = re.fullmatch(r"csp_components_(\d+)_loso_results\.csv", path.name)
     if not match:
         raise ValueError(f"Could not parse CSP component count from {path.name}")
@@ -108,6 +114,8 @@ def rows_by_test_session(path):
 
 
 def build_fold_diff(path_c4, path_c8):
+    # Fold bazli fark hesabi icin iki dosyanin ayni test_session setini icermesi gerekir.
+    # Aksi halde ortalama fark, farkli session'lardan gelen skorlarin karisimi olur.
     c4_rows = rows_by_test_session(path_c4)
     c8_rows = rows_by_test_session(path_c8)
 
@@ -175,6 +183,8 @@ def main():
         path for path in results_dir.glob(INPUT_PATTERN)
         if "summary" not in path.name
     )
+    # Summary dosyalari tekrar summary girdisi yapilmaz.
+    # Sadece per-component LOSO sonuc CSV'leri bu ozetin kaynagi olmalidir.
     print("Matched input files:")
     for path in input_files:
         print(f"  {path.resolve()}")

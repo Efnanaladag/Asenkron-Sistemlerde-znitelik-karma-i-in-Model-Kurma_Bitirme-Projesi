@@ -42,6 +42,7 @@ def get_session_range_from_cli():
         start_session = int(sys.argv[1])
         end_session = int(sys.argv[2])
 
+        # Aralik filtresi session shuffle degildir; sadece kosulacak sirali session setini daraltir.
         if start_session > end_session:
             raise ValueError("Baslangic session, bitis session'dan buyuk olamaz.")
 
@@ -107,6 +108,8 @@ def load_all_sessions(start_session=None, end_session=None):
     session_files = get_session_window_files()
     sorted_ids = sort_session_ids(list(session_files.keys()))
 
+    # Wideband X/y dosyalari fold icinde 5 banda ayrilacak ham girdidir.
+    # CSP fit'i bu runner'da degil, training fonksiyonunun her LOSO fold'unda yapilir.
     if start_session is not None and end_session is not None:
         sorted_ids = [
             session_id for session_id in sorted_ids
@@ -137,6 +140,8 @@ def save_fold_results(fold_results):
     """
     Fold sonuclarini CSV olarak kaydeder.
     """
+    # 5-band CSP sonucu sabit CSV adiyla kaydedilir.
+    # Bu dosya component ablation ve tez raporu icin karsilastirma noktasi olur.
     if len(fold_results) == 0:
         raise ValueError("Kaydedilecek fold sonucu yok.")
 
@@ -156,6 +161,7 @@ def save_predictions(all_predictions):
     """
     Test fold tahminlerini CSV olarak kaydeder.
     """
+    # Skorlar test penceresi bazinda saklanir; ROC-AUC yeniden hesaplama ve hata incelemesi icin kullanilir.
     if len(all_predictions) == 0:
         raise ValueError("Kaydedilecek tahmin yok.")
 

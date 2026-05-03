@@ -38,6 +38,8 @@ def build_loso_folds(session_data):
 
     folds = []
 
+    # Session sirasi sayisal olarak korunur; burada random shuffle yapilmaz.
+    # LOSO-session, modelin baska oturuma genellenmesini olcmek icin her seferinde tek session'i testte birakir.
     for test_session in session_ids:
         train_sessions = [s for s in session_ids if s != test_session]
 
@@ -66,6 +68,8 @@ def build_train_test_data(session_data, fold):
     X_train_list = []
     y_train_list = []
 
+    # Egitim verisi yalnizca test session disindaki session'lardan birlestirilir.
+    # Test session'in feature dagilimi train tarafindaki hicbir fit islemine dahil edilmez.
     for session_id in fold["train_sessions"]:
         X_train_list.append(session_data[session_id]["X"])
         y_train_list.append(session_data[session_id]["y"])
@@ -93,6 +97,8 @@ def run_one_fold(X_train, y_train, X_test, y_test):
     - test sadece transform edilir
     - sonra LDA eğitilir
     """
+    # StandardScaler train'de fit edilir; test verisi sadece ayni ortalama/std ile transform edilir.
+    # Bu ayrim korunmazsa test session bilgisi egitime sizabilir ve skor yapay yukselebilir.
     # Train-only scaler
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
@@ -110,6 +116,8 @@ def run_one_fold(X_train, y_train, X_test, y_test):
     else:
         y_score = lda_model.decision_function(X_test_scaled)
 
+    # ROC-AUC sirali skor kalitesini, balanced accuracy ise iki sinifin dengeli basarisini ozetler.
+    # 0=ITI/non-control ve 1=feedback/control siniflari dengesiz olabilecegi icin ikisi birlikte raporlanir.
     auc = roc_auc_score(y_test, y_score)
     bal_acc = balanced_accuracy_score(y_test, y_pred)  # Kullanma sebebimiz dengesiz veri durumunda accuracy yanıltıcı olabilir, balanced accuracy ise her sınıfın doğruluğunu ayrı ayrı hesaplayıp ortalamasını alır, böylece dengesiz veri durumlarında daha adil bir değerlendirme sağlar.
     cm = confusion_matrix(y_test, y_pred)  # FP FN TN TP değil, sklearn'de düzen [[TN, FP], [FN, TP]] şeklindedir. Yani cm[0, 0] TN, cm[0, 1] FP, cm[1, 0] FN, cm[1, 1] TP olur.

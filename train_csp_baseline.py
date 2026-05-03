@@ -41,6 +41,8 @@ def build_loso_folds(session_data):
 
     folds = []
 
+    # Session'lar karistirilmadan sirayla test fold'u yapilir.
+    # Bu, pseudo-online senaryoda ayni subject icinde cross-session genellemesini olcer.
     for test_session in session_ids:
         train_sessions = [s for s in session_ids if s != test_session]
 
@@ -65,6 +67,8 @@ def build_train_test_data(session_data, fold):
     X_train_list = []
     y_train_list = []
 
+    # CSP ham pencere sinyaliyle calisir; burada test session train listesine hic eklenmez.
+    # Boylece spatial pattern hesabinda test oturumunun kovaryans bilgisi kullanilmaz.
     for session_id in fold["train_sessions"]:
         X_train_list.append(session_data[session_id]["X"])
         y_train_list.append(session_data[session_id]["y"])
@@ -103,6 +107,8 @@ def fit_transform_csp_features(X_train, y_train, X_test):
     CSP'yi sadece train veride fit eder.
     Sonra train ve test için aynı CSP ile transform uygular.
     """
+    # CSP sinif etiketlerini kullanarak spatial filtre ogrenir.
+    # Bu nedenle fit_transform yalnizca training veride yapilmali, test sadece transform edilmelidir.
     csp_model = CSP(
         n_components=int(config.CSP_COMPONENTS),  # Başlangıç için 4
         reg="ledoit_wolf",  # Sayısal kararlılık için hafif düzenleme
@@ -136,6 +142,8 @@ def run_one_fold(X_train, y_train, X_test, y_test):
     """
     X_train_feat, X_test_feat = fit_transform_csp_features(X_train, y_train, X_test)
 
+    # CSP sonrasi feature olcegi fold'a gore degisebilir.
+    # Scaler da CSP gibi sadece train'de fit edilerek test session etkisi disarida tutulur.
     # Train-only scaler
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train_feat)

@@ -18,6 +18,8 @@ PIPELINE_SCRIPTS = [
     "windowing.py",
     "features_bandpower.py",
 ]
+# Bu sira dosya bagimliliklarini temsil eder:
+# trial table -> label table -> EEG windows -> bandpower features.
 
 
 # =========================================================
@@ -125,6 +127,8 @@ def get_available_sessions(subject_id):
     1) Inventory json
     2) Dataset fallback
     """
+    # Inventory varsa once onu kullanmak, daha once belgelenmis session listesini tekrarlar.
+    # Dataset fallback ise inventory uretilmemis ortamlarda hattin calisabilmesi icindir.
     sessions = get_sessions_from_inventory(subject_id)
     if len(sessions) > 0:
         print("Session listesi inventory dosyasindan bulundu.")
@@ -177,6 +181,8 @@ def run_one_script_for_session(script_name, session_name):
     """
     command = [sys.executable, script_name, str(session_name)]
 
+    # Her adim ayri process olarak kosulur; boylece CLI tabanli eski script davranisi korunur.
+    # Bir adim hatali donerse o session durur ve hata batch log'una yazilir.
     print(f"  -> Calisiyor: {script_name} (session {session_name})")
     result = subprocess.run(command, cwd=config.BASE_DIR, check=False)
 
@@ -232,6 +238,8 @@ def save_batch_log(subject_id, successful_sessions, failed_sessions):
     """
     Batch sonucunu kucuk bir json log dosyasina yazar.
     """
+    # Batch log, hangi session'larin basariyla feature urettigini belgeleyen reproducibility ciktisidir.
+    # Basarisiz adimlar acik tutuldugu icin eksik dosyalarin kaynagi sonradan izlenebilir.
     os.makedirs(config.LOG_DIR, exist_ok=True)
 
     save_path = os.path.join(

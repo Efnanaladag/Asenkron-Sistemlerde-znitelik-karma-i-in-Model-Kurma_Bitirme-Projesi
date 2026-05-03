@@ -38,6 +38,7 @@ def get_session_range_from_cli():
         start_session = int(sys.argv[1])
         end_session = int(sys.argv[2])
 
+        # Aralik secimi sadece smoke/alt deney icindir; secilen session'lar yine sirali ve shuffle'siz kalir.
         if start_session > end_session:
             raise ValueError("Baslangic session, bitis session'dan buyuk olamaz.")
 
@@ -111,6 +112,8 @@ def load_all_sessions(start_session=None, end_session=None):
     session_files = get_session_window_files()
     sorted_ids = sort_session_ids(list(session_files.keys()))
 
+    # CSP feature'lari burada onceden hesaplanmaz.
+    # Her fold kendi train session'lariyla CSP fit edecegi icin ham window X/y yuklenir.
     if start_session is not None and end_session is not None:
         sorted_ids = [
             session_id for session_id in sorted_ids
@@ -141,6 +144,8 @@ def save_fold_results(fold_results):
     """
     Fold sonuclarini CSV olarak kaydeder.
     """
+    # Sonuc dosyasi, LOSO fold'larinin metriklerini sabit dosya adiyla saklar.
+    # Raporlama ve tekrar kontrol icin train/test session bilgisi satirda tutulur.
     if len(fold_results) == 0:
         raise ValueError("Kaydedilecek fold sonucu yok.")
 
@@ -162,6 +167,7 @@ def save_predictions(all_predictions):
     """
     Test fold tahminlerini CSV olarak kaydeder.
     """
+    # Prediction dosyasi pencere bazinda skor saklar; ROC-AUC ve hata analizi buradan izlenebilir.
     if len(all_predictions) == 0:
         raise ValueError("Kaydedilecek tahmin yok.")
 

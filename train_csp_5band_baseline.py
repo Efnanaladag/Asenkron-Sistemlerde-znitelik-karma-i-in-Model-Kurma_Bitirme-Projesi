@@ -40,6 +40,8 @@ def get_canonical_bands():
     """
     Canonical 5 bandi sabit sirada dondurur.
     """
+    # Bant sirasi feature kolon sirasi haline gelir.
+    # Bu nedenle ayni sira egitim, raporlama ve XAI ciktisinda korunmalidir.
     band_names = ["delta", "theta", "alpha", "beta", "gamma"]
     bands = []
 
@@ -70,6 +72,8 @@ def build_loso_folds(session_data):
 
     folds = []
 
+    # Session shuffle uygulanmaz; her session sirayla test oturumu olur.
+    # LOSO-session, farkli oturuma genelleme performansini olcmek icin kullanilir.
     for test_session in session_ids:
         train_sessions = [s for s in session_ids if s != test_session]
 
@@ -118,6 +122,8 @@ def apply_bandpass_to_epochs(X, sfreq, low_freq, high_freq):
 
     X shape: (n_epochs, n_channels, n_samples)
     """
+    # Wideband pencere burada ilgili canonical banda ayrilir.
+    # Bu filtre supervised degildir; sinif bilgisini kullanan asama CSP fit'idir.
     X_filtered = filter_data(
         X,
         sfreq=sfreq,
@@ -145,6 +151,8 @@ def fit_transform_one_band_csp(X_train_band, y_train, X_test_band, csp_component
     """
     csp_components_value = resolve_csp_components(csp_components)
 
+    # Her bant kendi CSP filtresini train veriden ogrenir.
+    # Test bandini fit'e katmak kovaryans bilgisini sizdirir ve skoru iyimserlestirir.
     csp_model = CSP(
         n_components=csp_components_value,
         reg="ledoit_wolf",  # Sayisal kararlilik
@@ -171,6 +179,8 @@ def build_5band_csp_features(X_train, y_train, X_test, sfreq, csp_components=Non
     train_feature_blocks = []
     test_feature_blocks = []
 
+    # Her bandin CSP feature blogu ayni sirada biriktirilir.
+    # Son feature matrisi: [delta CSP, theta CSP, alpha CSP, beta CSP, gamma CSP] sirasindadir.
     for band_name, low_freq, high_freq in bands:
         X_train_band = apply_bandpass_to_epochs(X_train, sfreq, low_freq, high_freq)
         X_test_band = apply_bandpass_to_epochs(X_test, sfreq, low_freq, high_freq)
@@ -208,6 +218,8 @@ def run_one_fold(X_train, y_train, X_test, y_test, csp_components=None):
     csp_components_value = resolve_csp_components(csp_components)
 
     n_channels = int(X_train.shape[1])
+    # CSP component sayisi kanal sayisini asarsa matematiksel olarak anlamli filtre uretilemez.
+    # Bu kontrol ablation calismalarinda hatayi model fit asamasindan once yakalar.
     if csp_components_value > n_channels:
         raise ValueError(
             f"csp_components ({csp_components_value}) kanal sayısından büyük olamaz "
@@ -222,6 +234,8 @@ def run_one_fold(X_train, y_train, X_test, y_test, csp_components=None):
         csp_components=csp_components_value
     )
 
+    # 5-band CSP'den sonra tum feature'lar ayni olcekte olmayabilir.
+    # StandardScaler yalnizca train feature'larinda fit edilerek test session disarida tutulur.
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train_feat)
     X_test_scaled = scaler.transform(X_test_feat)

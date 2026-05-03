@@ -10,6 +10,8 @@ from run_cross_session_csp_5band import load_all_sessions
 from train_csp_5band_baseline import run_loso_csp_5band_baseline
 
 
+# Bu script CSP component sayisinin LOSO-session performansina etkisini inceler.
+# Ablation ciktisi model secimi kaniti degil, rapor icin kontrollu karsilastirma tablosudur.
 RESULTS_FOLDER = os.path.join(config.OUTPUT_DIR, "ablation_results")
 COMPONENT_VALUES = [2, 4, 6, 8]
 WIDEBAND_WINDOW_FOLDER = os.path.join(config.OUTPUT_DIR, "window_data_wideband")
@@ -19,6 +21,8 @@ EXPECTED_WIDEBAND_WINDOW_COUNT = 11
 def preflight_wideband_inputs():
     print("Current working directory:", os.getcwd())
 
+    # 5-band CSP ablation, tum session'larin ayni wideband pencere setinden gelmesini bekler.
+    # Eksik dosya varsa fold sayisi degisir ve component karsilastirmasi adil olmaz.
     if not os.path.isdir(WIDEBAND_WINDOW_FOLDER):
         found_count = 0
     else:
@@ -40,6 +44,8 @@ def preflight_wideband_inputs():
 
 
 def parse_args():
+    # CLI, yalnizca session araligini ve component listesini degistirir.
+    # Egitim mantigi ve LOSO-session ayrimi training fonksiyonlarinda sabit kalir.
     parser = argparse.ArgumentParser(
         description="Run LOSO CSP component ablations on existing wideband windows."
     )
@@ -83,6 +89,8 @@ def parse_args():
 
 
 def save_csv(rows, save_path):
+    # Her component degeri icin fold sonuclari, sonunda da ozet tablo kaydedilir.
+    # Sabit CSV isimleri sonraki summarize ve istatistik scriptlerinin girdisidir.
     if len(rows) == 0:
         raise ValueError(f"Kaydedilecek satir yok: {save_path}")
 
@@ -135,6 +143,8 @@ def main():
 
     summary_rows = []
 
+    # Component sayisi degisse bile train/test session ayrimi ayni kalir.
+    # Boylece metrik farklari split degisiminden degil CSP ayarindan kaynaklanir.
     for csp_components in component_values:
         print(f"\n===== CSP COMPONENT ABLATION: {csp_components} =====")
 

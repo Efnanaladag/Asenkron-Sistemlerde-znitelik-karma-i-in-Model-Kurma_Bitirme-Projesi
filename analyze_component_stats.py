@@ -15,6 +15,8 @@ ROC_AUC_COLUMNS = ["roc_auc", "auc", "mean_roc_auc"]
 BALANCED_ACCURACY_COLUMNS = ["balanced_accuracy", "bal_acc", "ba"]
 
 
+# Bu script iki CSP component ayarini fold bazinda eslestirerek post-hoc istatistik uretir.
+# Yeni egitim yapmaz; mevcut ablation CSV'lerini okur ve kucuk n nedeniyle sonuclari kesifsel yorumlar.
 def parse_args():
     parser = argparse.ArgumentParser(
         description=(
@@ -68,6 +70,8 @@ def as_float(row, column, path):
 
 
 def load_component_results(path):
+    # Farkli CSV surumlerinde kolon isimleri degisebildigi icin kabul edilen isimlerden biri aranir.
+    # Fold/session anahtari benzersiz olmazsa paired analiz anlamini kaybeder.
     rows, fieldnames = read_rows(path)
     if not rows:
         raise ValueError(f"No rows found in {path}")
@@ -110,6 +114,8 @@ def sort_session_ids(session_ids):
 
 
 def build_paired_delta_rows(component_a, component_b, rows_a, rows_b):
+    # Paired delta, ayni test session icin component B skorundan component A skorunu cikarir.
+    # Session setleri eslesmezse farklar genelleme degil dosya uyumsuzlugu olur.
     if set(rows_a) != set(rows_b):
         missing_from_b = sort_session_ids(set(rows_a) - set(rows_b))
         missing_from_a = sort_session_ids(set(rows_b) - set(rows_a))
@@ -160,6 +166,8 @@ def wilcoxon_p_value(deltas):
 
 
 def bootstrap_mean_ci(deltas, n_bootstrap, seed):
+    # Bootstrap burada fold-level ortalama fark icin belirsizlik araligi verir.
+    # Bu, nested model secimi yerine gecmez; yalnizca mevcut fold farklarini ozetler.
     rng = np.random.default_rng(seed)
     n = len(deltas)
     samples = rng.choice(deltas, size=(n_bootstrap, n), replace=True)
@@ -248,6 +256,7 @@ def print_summary(summary_rows, component_a, component_b):
 
 
 def print_cautions():
+    # Bu uyarilar, post-hoc component karsilastirmasinin raporda asiri yorumlanmasini engeller.
     print()
     print("WARNING: This is paired fold-level exploratory analysis.")
     print("WARNING: n is small, usually 11 LOSO folds.")

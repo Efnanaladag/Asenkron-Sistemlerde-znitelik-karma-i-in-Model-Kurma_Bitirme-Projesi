@@ -44,6 +44,7 @@ def get_k_best_value(n_features, k_best=None):
 
     # all -> feature selection bypass
     if isinstance(k_best, str) and k_best.lower() == "all":
+        # "all" secenegi ablation icindir; feature secimini kapatir ama feature sirasi korunur.
         return n_features, True
 
     k_value = int(k_best)
@@ -86,6 +87,8 @@ def run_one_fold(X_train, y_train, X_test, y_test, csp_components=None, k_best=N
 
     k_value, bypass_fs = get_k_best_value(X_train_feat.shape[1], k_best=k_best)
 
+    # Feature selection supervised bir adimdir; mutual information y_train ile hesaplanir.
+    # Selector test feature'larina fit edilirse test session bilgisi modele sizmis olur.
     if bypass_fs:
         X_train_sel = X_train_feat
         X_test_sel = X_test_feat
@@ -95,6 +98,8 @@ def run_one_fold(X_train, y_train, X_test, y_test, csp_components=None, k_best=N
         X_train_sel = selector.fit_transform(X_train_feat, y_train)
         X_test_sel = selector.transform(X_test_feat)
 
+    # CSP ve feature selection sonrasi olcek farklari LDA'yi etkileyebilir.
+    # Scaler da yalnizca train secilmis feature'larinda fit edilir.
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train_sel)
     X_test_scaled = scaler.transform(X_test_sel)

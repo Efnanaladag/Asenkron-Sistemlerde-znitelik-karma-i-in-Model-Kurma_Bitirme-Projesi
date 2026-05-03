@@ -30,6 +30,8 @@ DEFAULT_INPUT_DIR = Path("outputs") / "window_data_wideband"
 DEFAULT_OUTPUT_DIR = Path("outputs") / "xai_results"
 
 
+# Bu script egitim hattini degistirmez; mevcut 5-band CSP + LDA akisinin post-hoc yorumlanabilirlik ciktilarini uretir.
+# LDA katsayilari ikincil tanisal sinyal, opsiyonel permutation ise band bazli daha guvenilir post-hoc sinyaldir.
 def get_default_random_seed():
     return int(getattr(config, "RANDOM_SEED", 42))
 
@@ -145,6 +147,8 @@ def parse_session_id(path):
 
 
 def find_session_files(input_dir):
+    # XAI analizi tum 11 session'in wideband pencere dosyasini bekler.
+    # Eksik veya fazla dosya, LOSO fold yapisini degistirip band karsilastirmasini bozabilir.
     files = sorted(input_dir.glob("session_*_wideband_windows.npz"))
     if len(files) != EXPECTED_SESSION_COUNT:
         raise ValueError(
@@ -172,6 +176,8 @@ def find_session_files(input_dir):
 
 
 def load_all_sessions(input_dir):
+    # Burada sadece X/y dosyalari okunur ve sekil/label sozlesmesi dogrulanir.
+    # CSP, scaler ve LDA fit islemleri daha sonra fold icinde train verisiyle yapilir.
     session_files = find_session_files(input_dir)
     session_data = {}
 
@@ -220,6 +226,8 @@ def load_all_sessions(input_dir):
 
 
 def build_feature_mapping(csp_components):
+    # Feature mapping, concatenated CSP feature kolonlarini band ve component etiketlerine geri baglar.
+    # Bu eslesme XAI CSV'lerinin hangi kolonun hangi banttan geldigini aciklamasi icin gereklidir.
     mapping = []
     bands = get_canonical_bands()
     for band_index, (band, _, _) in enumerate(bands):
@@ -251,6 +259,8 @@ def build_feature_mapping_records(component_settings, provenance):
 
 
 def fit_transform_5band_features(X_train, y_train, X_test, csp_components):
+    # Bu fonksiyon training pipeline'ini XAI icin tekrarlar.
+    # Her bandin CSP modeli yalnizca train veride fit edilir, test verisi sadece transform edilir.
     bands = get_canonical_bands()
     train_blocks = []
     test_blocks = []
@@ -277,6 +287,8 @@ def fit_transform_5band_features(X_train, y_train, X_test, csp_components):
             transform_into="csp_space",
             norm_trace=False,
         )
+        # CSP sinif etiketlerini kullandigi icin test session fit'e katilmaz.
+        # Bu kural XAI tekrar kosusunda da ana baseline ile ayni sekilde korunur.
         X_train_csp = csp_model.fit_transform(X_train_band, y_train)
         X_test_csp = csp_model.transform(X_test_band)
 
@@ -338,6 +350,8 @@ def record_common_metrics(
 
 
 def build_feature_records(component_setting, fold_id, fold, coef, metrics, provenance):
+    # LDA katsayilari feature bazinda kaydedilir; mutlak deger yalnizca goreli onem tanisidir.
+    # Bu kayit causal yorum degil, hangi band/component kolonlarinin modele agirlik verdigini gosterir.
     records = []
     feature_mapping = build_feature_mapping(component_setting)
     for feature in feature_mapping:
@@ -478,6 +492,8 @@ def run_band_permutation_importance(
     provenance,
     rng,
 ):
+    # Permutation importance test fold'unda tek bandin feature kolonlarini karistirir.
+    # Skor dususu, egitilmis modelin o band bilgisine ne kadar dayandigini post-hoc olarak ozetler.
     records = []
     bands = get_canonical_bands()
     repeats = int(args.permutation_repeats)
@@ -849,6 +865,8 @@ def main():
                     f"Expected {expected_features} features, got {X_train_feat.shape[1]}"
                 )
 
+            # XAI tekrar kosusunda da scaler yalnizca train feature'larinda fit edilir.
+            # Test fold'unun olcek bilgisi katsayi veya metrik hesabina sizdirilmez.
             scaler = StandardScaler()
             X_train_scaled = scaler.fit_transform(X_train_feat)
             X_test_scaled = scaler.transform(X_test_feat)
@@ -928,6 +946,8 @@ def main():
     check_normalized_band_sums(band_records)
     warn_extreme_coefficient_dominance(feature_records)
 
+    # Asagidaki CSV'ler tez raporu ve hata kontrolu icin ayrik artefaktlar olarak saklanir.
+    # Fold-level kayitlar, ozet tablolari tekrar uretmeyi mumkun kilar.
     write_csv(output_dir / "csp_feature_mapping.csv", feature_mapping_records)
     write_csv(output_dir / "csp_feature_importance_fold_level.csv", feature_records)
     write_csv(output_dir / "csp_band_importance_fold_level.csv", band_records)

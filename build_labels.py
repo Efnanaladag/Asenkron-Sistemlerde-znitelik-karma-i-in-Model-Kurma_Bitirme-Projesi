@@ -98,6 +98,8 @@ def build_label_rows(trial_rows):
         run_id = str(trial["run_id"])
         cue_label = str(trial["cue_label"])
 
+        # Bu projede 0 sinifi yalnizca ITI'den gelir.
+        # Cue komutu veya voluntary rest/down bilgisi idle/non-control etiketi sayilmaz.
         # -------------------------------------------------
         # ITI segmenti -> 0
         # -------------------------------------------------
@@ -123,6 +125,8 @@ def build_label_rows(trial_rows):
         label_rows.append(iti_row)
         segment_id += 1
 
+        # Feedback segmenti 1 sinifini temsil eder.
+        # Kontrol var/yok ayriminda cue_label hedef yonu olarak saklanir, sinif etiketi olmaz.
         # -------------------------------------------------
         # Feedback segmenti -> 1
         # -------------------------------------------------

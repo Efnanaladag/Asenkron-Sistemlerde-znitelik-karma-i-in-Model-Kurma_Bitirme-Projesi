@@ -20,6 +20,8 @@ BROAD_HIGH_FREQ = config.BROAD_HIGH_FREQ
 WINDOW_SIZE_SEC = config.WINDOW_SIZE_SEC
 STRIDE_SEC = config.STRIDE_SEC
 
+# Wideband pencereleme, 5 canonical band CSP deneyinin ortak ham girdisini uretir.
+# Bantlara ayirma burada degil, her LOSO fold'u icinde train/test ayrimindan sonra yapilir.
 MOTOR_CHANNELS = [
     "FC3", "FC1", "FCz", "FC2", "FC4",
     "C3", "C1", "Cz", "C2", "C4",
@@ -110,10 +112,14 @@ def preprocess_raw_wideband(raw):
     """
     raw_proc = raw.copy()
 
+    # Motor kanal secimi, dar bant baseline ile ayni elektrot uzayini korur.
+    # Boylece bandpower, CSP ve 5-band CSP deneyleri ayni bolge uzerinden karsilastirilir.
     existing_channels = [ch for ch in MOTOR_CHANNELS if ch in raw_proc.ch_names]
     if len(existing_channels) == 0:
         raise ValueError("Motor kanal listesinde raw icinde bulunan kanal yok.")
 
+    # Genis bant filtre, daha sonra delta/theta/alpha/beta/gamma bantlarina ayrilacak sinyali hazirlar.
+    # Bu dosya supervised bir islem fit etmez; CSP fit'i egitim fold'u icinde kalmalidir.
     raw_proc.pick(existing_channels)
     raw_proc.set_eeg_reference("average", projection=False)
     raw_proc.resample(TARGET_SFREQ)
@@ -156,6 +162,8 @@ def extract_windows_from_segment(raw_proc, segment_row, start_window_id):
     end_sec = float(segment_row["end_sec"])
     duration_sec = float(segment_row["duration_sec"])
 
+    # Kisa segmentleri sessizce yok saymak yerine dropped CSV'ye nedeniyle yaziyoruz.
+    # Bu, ITI/feedback dengesini ve veri kaybini sonradan denetlemeyi saglar.
     if segment_too_short(start_sec, end_sec):
         dropped_row = {
             "segment_id": segment_id,
@@ -191,6 +199,8 @@ def extract_windows_from_segment(raw_proc, segment_row, start_window_id):
 
         windows_data.append(window_data)
 
+        # Label, cue komutundan degil segment tipinden gelir: ITI=0, feedback=1.
+        # cue_label sadece yorumlama icin metadata olarak pencerede tasinir.
         meta_row = {
             "window_id": window_id,
             "segment_id": segment_id,
@@ -244,6 +254,8 @@ def build_all_windows(raw_proc, label_rows):
     if len(all_window_data) == 0:
         raise ValueError("Hic pencere uretilemedi.")
 
+    # X/y/metadata ayni ekleme sirasindan gelir.
+    # Bu siralama korunmazsa model tahminleri yanlis pencere bilgisiyle eslesebilir.
     X = np.stack(all_window_data, axis=0)
     y = np.array([row["label"] for row in all_window_meta], dtype=int)
 
@@ -296,6 +308,8 @@ def save_metadata_csv(window_meta, session_name):
     """
     Pencere metadata'sini CSV olarak kaydeder.
     """
+    # Wideband metadata, normal windowing metadata'siyle karsilastirilabilir kalmalidir.
+    # Bu dosya X/y satirlarinin hangi trial ve segmentten geldigini belgeler.
     save_dir = os.path.join(config.OUTPUT_DIR, "window_data_wideband")
     os.makedirs(save_dir, exist_ok=True)
 
@@ -315,6 +329,8 @@ def save_dropped_segments_csv(dropped_rows, session_name):
     """
     Kisa kaldigi icin dislanan segmentleri kaydeder.
     """
+    # Bos dropped listesi bile header ile kaydedilir.
+    # Her session icin eleme kaydi olmasi raporlamada izlenebilirlik saglar.
     save_dir = os.path.join(config.OUTPUT_DIR, "window_data_wideband")
     os.makedirs(save_dir, exist_ok=True)
 
@@ -341,6 +357,8 @@ def save_npz(X, y, session_name):
     """
     Gercek EEG pencerelerini npz dosyasi olarak kaydeder.
     """
+    # Bu NPZ, 5-band CSP ve feature selection deneylerinin ana girdisidir.
+    # Kayit adi sabit tutuldugu icin batch ve ablation scriptleri ayni artefakti bulabilir.
     save_dir = os.path.join(config.OUTPUT_DIR, "window_data_wideband")
     os.makedirs(save_dir, exist_ok=True)
 
